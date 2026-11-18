@@ -1,0 +1,69 @@
+<p class="breadcrumb">
+  <a [routerLink]="isEdit && ticketId ? ['/tickets', ticketId] : ['/tickets']">&larr; Cancel</a>
+</p>
+
+<div class="page-header">
+  <h1>{{ isEdit ? 'Edit ticket #' + ticketId : 'New ticket' }}</h1>
+</div>
+
+@if (loading()) {
+  <p class="muted">Loading ticket…</p>
+} @else if (loadError()) {
+  <div class="panel panel-error" role="alert">
+    <p>{{ loadError() }}</p>
+    <a routerLink="/tickets" class="btn">Back to tickets</a>
+  </div>
+} @else {
+  <form class="panel form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="field">
+      <label for="title">Title</label>
+      <input id="title" type="text" formControlName="title" maxlength="200"
+             [attr.aria-invalid]="errorFor('title') ? 'true' : null">
+      @if (errorFor('title'); as message) {
+        <p class="field-error">{{ message }}</p>
+      }
+    </div>
+
+    <div class="field">
+      <label for="description">Description</label>
+      <textarea id="description" rows="7" formControlName="description"
+                [attr.aria-invalid]="errorFor('description') ? 'true' : null"></textarea>
+      @if (errorFor('description'); as message) {
+        <p class="field-error">{{ message }}</p>
+      }
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="priority">Priority</label>
+        <select id="priority" formControlName="priority">
+          @for (p of priorities; track p) {
+            <option [value]="p">{{ priorityLabels[p] }}</option>
+          }
+        </select>
+        @if (errorFor('priority'); as message) {
+          <p class="field-error">{{ message }}</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="status">Status</label>
+        <select id="status" formControlName="status">
+          @for (s of statuses; track s) {
+            <option [value]="s">{{ statusLabels[s] }}</option>
+          }
+        </select>
+        @if (errorFor('status'); as message) {
+          <p class="field-error">{{ message }}</p>
+        }
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary" [disabled]="saving()">
+        {{ saving() ? 'Saving…' : isEdit ? 'Save changes' : 'Create ticket' }}
+      </button>
+      <a class="btn" [routerLink]="isEdit && ticketId ? ['/tickets', ticketId] : ['/tickets']">Cancel</a>
+    </div>
+  </form>
+}

@@ -1,0 +1,16 @@
+# Build output
+target/
+dist/
+.angular/
+node_modules/
+
+# Secrets / local config
+.env
+*.local
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

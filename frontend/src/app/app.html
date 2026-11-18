@@ -1,0 +1,15 @@
+<header class="app-header">
+  <div class="container header-inner">
+    <a routerLink="/tickets" class="brand">Support Ticket Tracker</a>
+    <nav aria-label="Main">
+      <a routerLink="/tickets" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Tickets</a>
+      <a routerLink="/tickets/new" routerLinkActive="active">New ticket</a>
+    </nav>
+  </div>
+</header>
+
+<app-notifications />
+
+<main class="container">
+  <router-outlet />
+</main>

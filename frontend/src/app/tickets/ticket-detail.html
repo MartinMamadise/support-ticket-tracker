@@ -1,0 +1,39 @@
+<p class="breadcrumb"><a routerLink="/tickets">&larr; All tickets</a></p>
+
+@if (loading()) {
+  <p class="muted">Loading ticket…</p>
+} @else if (loadError()) {
+  <div class="panel panel-error" role="alert">
+    <p>{{ loadError() }}</p>
+    <a routerLink="/tickets" class="btn">Back to tickets</a>
+  </div>
+} @else if (ticket(); as t) {
+  <div class="page-header">
+    <h1>#{{ t.id }} &ndash; {{ t.title }}</h1>
+    <div class="header-actions">
+      @if (confirmingDelete()) {
+        <span class="confirm-text">Delete this ticket?</span>
+        <button type="button" class="btn btn-danger" (click)="delete()">Delete</button>
+        <button type="button" class="btn" (click)="setConfirming(false)">Cancel</button>
+      } @else {
+        <a class="btn" [routerLink]="['/tickets', t.id, 'edit']">Edit</a>
+        <button type="button" class="btn" (click)="setConfirming(true)">Delete</button>
+      }
+    </div>
+  </div>
+
+  <div class="panel">
+    <dl class="details">
+      <dt>Status</dt>
+      <dd><app-ticket-badge kind="status" [value]="t.status" /></dd>
+      <dt>Priority</dt>
+      <dd><app-ticket-badge kind="priority" [value]="t.priority" /></dd>
+      <dt>Created</dt>
+      <dd>{{ t.createdAt | date: 'dd MMM yyyy, HH:mm' }}</dd>
+      <dt>Last updated</dt>
+      <dd>{{ t.updatedAt | date: 'dd MMM yyyy, HH:mm' }}</dd>
+      <dt>Description</dt>
+      <dd class="description">{{ t.description }}</dd>
+    </dl>
+  </div>
+}
