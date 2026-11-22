@@ -1,39 +1,311 @@
-<p class="breadcrumb"><a routerLink="/tickets">&larr; All tickets</a></p>
+<p class="breadcrumb"><a routerLink="/tickets/mine">&larr; Tickets</a></p>
 
-@if (loading()) {
-  <p class="muted">Loading ticket…</p>
+@if (loading() && !ticket()) {
+  <p class="muted" aria-busy="true">Loading ticket…</p>
 } @else if (loadError()) {
   <div class="panel panel-error" role="alert">
     <p>{{ loadError() }}</p>
-    <a routerLink="/tickets" class="btn">Back to tickets</a>
+    <a routerLink="/tickets/mine" class="btn">Back to tickets</a>
   </div>
 } @else if (ticket(); as t) {
-  <div class="page-header">
-    <h1>#{{ t.id }} &ndash; {{ t.title }}</h1>
-    <div class="header-actions">
-      @if (confirmingDelete()) {
-        <span class="confirm-text">Delete this ticket?</span>
-        <button type="button" class="btn btn-danger" (click)="delete()">Delete</button>
-        <button type="button" class="btn" (click)="setConfirming(false)">Cancel</button>
-      } @else {
+  <div class="detail-header">
+    <div>
+      <p class="ticket-number">Ticket #{{ t.id }}</p>
+      <h1>{{ t.title }}</h1>
+      <div class="badge-row">
+        <app-ticket-badge kind="status" [value]="t.status" />
+        <app-ticket-badge kind="priority" [value]="t.priority" />
+        <span class="badge category-badge">{{ categoryLabels[t.category] ?? t.category }}</span>
+      </div>
+    </div>
+    <div class="detail-actions">
+      @for (target of actions(); track target) {
+        <button
+          type="button"
+          class="btn"
+          [class.btn-primary]="target === 'IN_PROGRESS' || target === 'RESOLVED'"
+          [class.btn-danger-outline]="target === 'CANCELLED'"
+          [disabled]="busy()"
+          (click)="changeStatus(target)"
+        >
+          {{ statusActions[target] }}
+        </button>
+      }
+      @if (permissions()?.canEdit) {
         <a class="btn" [routerLink]="['/tickets', t.id, 'edit']">Edit</a>
-        <button type="button" class="btn" (click)="setConfirming(true)">Delete</button>
+      }
+      @if (permissions()?.canDelete) {
+        <button type="button" class="btn btn-danger-outline" (click)="deleteTicket()">
+          Delete
+        </button>
       }
     </div>
   </div>
 
-  <div class="panel">
-    <dl class="details">
-      <dt>Status</dt>
-      <dd><app-ticket-badge kind="status" [value]="t.status" /></dd>
-      <dt>Priority</dt>
-      <dd><app-ticket-badge kind="priority" [value]="t.priority" /></dd>
-      <dt>Created</dt>
-      <dd>{{ t.createdAt | date: 'dd MMM yyyy, HH:mm' }}</dd>
-      <dt>Last updated</dt>
-      <dd>{{ t.updatedAt | date: 'dd MMM yyyy, HH:mm' }}</dd>
-      <dt>Description</dt>
-      <dd class="description">{{ t.description }}</dd>
-    </dl>
+  <div class="detail-layout">
+    <div class="detail-main">
+      <section class="card">
+        <h2 class="visually-hidden">Description</h2>
+        <p class="description">{{ t.description }}</p>
+      </section>
+
+      <section class="card" aria-labelledby="conversation-heading">
+        <h2 id="conversation-heading">Conversation</h2>
+        <ol class="comments">
+          @for (c of comments(); track c.id) {
+            <li class="comment" [class.comment-internal]="c.internal">
+              <div class="comment-head">
+                <strong>{{ c.author.displayName }}</strong>
+                @if (c.internal) {
+                  <span class="badge badge-internal">Internal note</span>
+                }
+                <span class="muted">{{ c.createdAt | date: 'dd MMM yyyy, HH:mm' }}</span>
+                @if (c.edited) {
+                  <span class="muted">(edited)</span>
+                }
+                <span class="comment-tools">
+                  @if (c.canEdit && editingId() !== c.id) {
+                    <button type="button" class="btn btn-link btn-sm" (click)="startEdit(c)">
+                      Edit
+                    </button>
+                  }
+                  @if (auth.isAdmin()) {
+                    <button type="button" class="btn btn-link btn-sm" (click)="deleteComment(c)">
+                      Delete
+                    </button>
+                  }
+                </span>
+              </div>
+              @if (editingId() === c.id) {
+                <label class="visually-hidden" [for]="'edit-' + c.id">Edit comment</label>
+                <textarea
+                  [id]="'edit-' + c.id"
+                  rows="3"
+                  maxlength="5000"
+                  #e
+                  [value]="editText()"
+                  (input)="editText.set(e.value)"
+                ></textarea>
+                <div class="form-actions">
+                  <button type="button" class="btn btn-primary btn-sm" (click)="saveEdit(c)">
+                    Save
+                  </button>
+                  <button type="button" class="btn btn-sm" (click)="cancelEdit()">Cancel</button>
+                </div>
+              } @else {
+                <p class="comment-body">{{ c.body }}</p>
+              }
+            </li>
+          } @empty {
+            <li class="muted">No comments yet.</li>
+          }
+        </ol>
+
+        @if (permissions()?.canComment) {
+          <form class="composer" (submit)="postComment($event)">
+            <label for="comment">{{
+              commentInternal() ? 'Internal note (staff only)' : 'Add a comment'
+            }}</label>
+            <textarea
+              id="comment"
+              rows="3"
+              maxlength="5000"
+              #ct
+              [value]="commentText()"
+              (input)="commentText.set(ct.value)"
+              [class.internal-input]="commentInternal()"
+            ></textarea>
+            <div class="composer-actions">
+              @if (permissions()?.canAddInternalNote) {
+                <label class="checkbox">
+                  <input
+                    type="checkbox"
+                    #internal
+                    [checked]="commentInternal()"
+                    (change)="commentInternal.set(internal.checked)"
+                  />
+                  Internal note
+                </label>
+              }
+              <button
+                type="submit"
+                class="btn btn-primary"
+                [disabled]="posting() || !commentText().trim()"
+              >
+                {{ posting() ? 'Posting…' : commentInternal() ? 'Add note' : 'Post comment' }}
+              </button>
+            </div>
+          </form>
+        }
+      </section>
+
+      <section class="card" aria-labelledby="attachments-heading">
+        <h2 id="attachments-heading">Attachments</h2>
+        <ul class="attachment-list">
+          @for (a of attachments(); track a.id) {
+            <li>
+              <a [href]="a.downloadUrl" download>{{ a.filename }}</a>
+              <span class="muted small"
+                >{{ formatBytes(a.sizeBytes) }} · {{ a.uploadedBy.displayName }} ·
+                {{ a.createdAt | date: 'dd MMM, HH:mm' }}</span
+              >
+              @if (a.canDelete) {
+                <button
+                  type="button"
+                  class="btn btn-link btn-sm"
+                  (click)="deleteAttachment(a)"
+                  [attr.aria-label]="'Remove ' + a.filename"
+                >
+                  Remove
+                </button>
+              }
+            </li>
+          } @empty {
+            <li class="muted">No attachments.</li>
+          }
+        </ul>
+        @if (permissions()?.canUpload) {
+          <div class="upload">
+            <label for="file" class="btn btn-sm" [class.disabled]="uploading()">
+              {{ uploading() ? 'Uploading…' : 'Attach a file' }}
+            </label>
+            <input
+              id="file"
+              type="file"
+              class="visually-hidden"
+              accept=".png,.jpg,.jpeg,.pdf,.txt,.log"
+              #file
+              [disabled]="uploading()"
+              (change)="upload(file)"
+            />
+            <span class="muted small">PNG, JPG, PDF, TXT or LOG, up to 5 MB</span>
+          </div>
+          @if (uploadError()) {
+            <p class="field-error" role="alert">{{ uploadError() }}</p>
+          }
+        }
+      </section>
+
+      <section class="card" aria-labelledby="activity-heading">
+        <h2 id="activity-heading">Activity</h2>
+        <ol class="timeline">
+          @for (a of activity(); track a.id) {
+            <li [class.timeline-internal]="a.internal">
+              <span class="timeline-dot" aria-hidden="true"></span>
+              <div>
+                <span
+                  ><strong>{{ a.actor?.displayName ?? 'System' }}</strong> {{ describe(a) }}</span
+                >
+                <span class="muted small">{{ a.createdAt | date: 'dd MMM yyyy, HH:mm' }}</span>
+              </div>
+            </li>
+          } @empty {
+            <li class="muted">No activity recorded.</li>
+          }
+        </ol>
+      </section>
+    </div>
+
+    <aside class="detail-side">
+      <section class="card">
+        <h2>Details</h2>
+        <dl class="details">
+          <dt>Requester</dt>
+          <dd>{{ t.requester?.displayName ?? '—' }}</dd>
+          <dt>Assignee</dt>
+          <dd>{{ t.assignee?.displayName ?? 'Unassigned' }}</dd>
+          <dt>Team</dt>
+          <dd>{{ t.team?.name ?? '—' }}</dd>
+          <dt>Created</dt>
+          <dd>{{ t.createdAt | date: 'dd MMM yyyy, HH:mm' }}</dd>
+          <dt>Updated</dt>
+          <dd>{{ t.updatedAt | date: 'dd MMM yyyy, HH:mm' }}</dd>
+          @if (t.resolvedAt) {
+            <dt>Resolved</dt>
+            <dd>{{ t.resolvedAt | date: 'dd MMM yyyy, HH:mm' }}</dd>
+          }
+        </dl>
+      </section>
+
+      @if (t.sla; as sla) {
+        <section class="card" aria-labelledby="sla-heading">
+          <h2 id="sla-heading">Service level</h2>
+          <dl class="details">
+            <dt>First response</dt>
+            <dd>
+              <app-sla-badge
+                [status]="sla.responseStatus"
+                [remainingSeconds]="sla.responseRemainingSeconds"
+                [showRemaining]="true"
+              />
+              @if (sla.firstResponseAt) {
+                <span class="muted small"
+                  >at {{ sla.firstResponseAt | date: 'dd MMM, HH:mm' }}</span
+                >
+              } @else if (sla.responseDueAt) {
+                <span class="muted small">due {{ sla.responseDueAt | date: 'dd MMM, HH:mm' }}</span>
+              }
+            </dd>
+            <dt>Resolution</dt>
+            <dd>
+              <app-sla-badge
+                [status]="sla.resolutionStatus"
+                [remainingSeconds]="sla.resolutionRemainingSeconds"
+                [showRemaining]="true"
+              />
+              @if (sla.resolutionDueAt) {
+                <span class="muted small"
+                  >due {{ sla.resolutionDueAt | date: 'dd MMM, HH:mm' }}</span
+                >
+              }
+              @if (sla.paused) {
+                <span class="muted small">Clock paused while waiting for the requester.</span>
+              }
+            </dd>
+          </dl>
+        </section>
+      }
+
+      @if (permissions()?.canAssign) {
+        <section class="card" aria-labelledby="assign-heading">
+          <h2 id="assign-heading">Assignment</h2>
+          <div class="field">
+            <label for="assign-team">Team</label>
+            <select id="assign-team" #team (change)="setAssignTeam(team.value)">
+              <option value="">No team</option>
+              @for (tm of teams(); track tm.id) {
+                <option [value]="tm.id" [selected]="assignTeamId() === tm.id">{{ tm.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="assign-agent">Agent</label>
+            <select id="assign-agent" #agent (change)="setAssignAgent(agent.value)">
+              <option value="">Unassigned</option>
+              @for (u of assignable(); track u.id) {
+                <option [value]="u.id" [selected]="assignAgentId() === u.id">
+                  {{ u.displayName }}
+                </option>
+              }
+            </select>
+          </div>
+          <div class="form-actions">
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              [disabled]="busy() || !assignmentChanged()"
+              (click)="saveAssignment()"
+            >
+              Save assignment
+            </button>
+            @if (t.assignee?.id !== auth.user()?.id) {
+              <button type="button" class="btn btn-sm" [disabled]="busy()" (click)="assignToMe()">
+                Assign to me
+              </button>
+            }
+          </div>
+        </section>
+      }
+    </aside>
   </div>
 }

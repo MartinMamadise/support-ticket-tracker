@@ -1,0 +1,63 @@
+<section class="login-card panel" aria-labelledby="login-title">
+  <h1 id="login-title">Sign in</h1>
+  <p class="muted login-intro">Use your SupportHub account.</p>
+
+  @if (submitError(); as message) {
+    <div class="login-error" role="alert" id="login-error">{{ message }}</div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate [attr.aria-busy]="loading()">
+    <div class="field">
+      <label for="login-username">Username or email</label>
+      <input
+        id="login-username"
+        type="text"
+        formControlName="username"
+        autocomplete="username"
+        autocapitalize="none"
+        autocorrect="off"
+        spellcheck="false"
+        maxlength="254"
+        required
+        [attr.aria-invalid]="usernameError() ? 'true' : null"
+        [attr.aria-describedby]="usernameError() ? 'login-username-error' : null"
+      />
+      @if (usernameError(); as message) {
+        <p class="field-error" id="login-username-error">{{ message }}</p>
+      }
+    </div>
+
+    <div class="field">
+      <label for="login-password">Password</label>
+      <div class="password-row">
+        <input
+          id="login-password"
+          #passwordInput
+          [type]="showPassword() ? 'text' : 'password'"
+          formControlName="password"
+          autocomplete="current-password"
+          maxlength="128"
+          required
+          [attr.aria-invalid]="passwordError() ? 'true' : null"
+          [attr.aria-describedby]="passwordError() ? 'login-password-error' : null"
+        />
+        <button
+          type="button"
+          class="btn btn-sm"
+          (click)="toggleShowPassword()"
+          [attr.aria-pressed]="showPassword()"
+          aria-controls="login-password"
+        >
+          {{ showPassword() ? 'Hide' : 'Show' }}<span class="visually-hidden"> password</span>
+        </button>
+      </div>
+      @if (passwordError(); as message) {
+        <p class="field-error" id="login-password-error">{{ message }}</p>
+      }
+    </div>
+
+    <button type="submit" class="btn btn-primary login-submit" [disabled]="loading()">
+      {{ loading() ? 'Signing in…' : 'Sign in' }}
+    </button>
+  </form>
+</section>

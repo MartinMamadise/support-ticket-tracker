@@ -28,6 +28,26 @@
 - README, `.env.example`, root `.gitignore` / `.gitattributes`.
 
 ## Decisions
-- `status` and `priority` stay `String` columns (not Java enums) so existing data and the existing repository method keep working; allowed values are enforced by validation.
+- (Superseded in Command 2) `status` and `priority` are now Java enums stored as strings; see `docs/AI_PROGRESS.md`.
 - Allowed values: status `OPEN, IN_PROGRESS, RESOLVED, CLOSED`; priority `LOW, MEDIUM, HIGH`.
 - Dev-server proxy instead of CORS configuration.
+
+## Command 5
+- Schema managed by Flyway migrations (`backend/src/main/resources/db/migration`); Hibernate `ddl-auto=validate` everywhere.
+- OpenAPI document and Swagger UI via springdoc, enabled only with the `dev` profile. See `docs/AI_PROGRESS.md`.
+
+
+## Command 6B - Angular login, authentication state and route protection
+- New `frontend/src/app/auth/`: `AuthService`, `Login` page, `authGuard`/`guestGuard`, `authInterceptor`, `safeReturnUrl`.
+- Routes: `/login` (guest only); every other route sits under `authGuard`. Header shows navigation, the signed-in user and
+  "Sign out" only when signed in. Current user is loaded at startup (`provideAppInitializer`).
+- Interceptor: 401 on protected `/api/` calls ends the session once and redirects to login; 403 CSRF failures are retried once
+  with a fresh token. Backend not changed.
+
+## Commands 7B–18 (2026-11-22)
+Ownership/visibility rules, users and teams administration, assignment with history and workload, comments and
+internal notes, activity timeline, SLA management with monitor, persistent notifications, secure attachments, dashboard
+analytics, a rebuilt Angular UI (shell, dashboard, queues, ticket detail, administration, profile, notifications),
+login throttling, Actuator health, Docker/Compose/nginx, GitHub Actions CI, Playwright E2E, and documentation.
+Breaking API changes: `GET /api/admin/users` is paged; `TicketResponse` gained fields; new statuses/priority values
+(`WAITING`, `CRITICAL`). Frontend sources were reformatted once with the project's Prettier settings.

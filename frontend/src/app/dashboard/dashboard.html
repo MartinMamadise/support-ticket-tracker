@@ -1,0 +1,204 @@
+<div class="page-header">
+  <div>
+    <h1>Dashboard</h1>
+    @if (data()) {
+      <p class="muted page-subtitle">{{ scopeText() }}</p>
+    }
+  </div>
+  <a routerLink="/tickets/new" class="btn btn-primary">New ticket</a>
+</div>
+
+@if (loading() && !data()) {
+  <div class="kpi-grid" aria-busy="true">
+    @for (i of [1, 2, 3, 4]; track i) {
+      <div class="card kpi skeleton"></div>
+    }
+  </div>
+} @else if (error()) {
+  <div class="panel panel-error" role="alert">
+    <p>{{ error() }}</p>
+    <button type="button" class="btn" (click)="load()">Try again</button>
+  </div>
+} @else if (data(); as d) {
+  @if (d.totals.total === 0) {
+    <div class="panel empty-state">
+      <h2>No tickets yet</h2>
+      <p class="muted">Statistics appear here as soon as the first ticket is raised.</p>
+      <a routerLink="/tickets/new" class="btn btn-primary">Raise a ticket</a>
+    </div>
+  } @else {
+    <section class="kpi-grid" aria-label="Key figures">
+      <a
+        class="card kpi"
+        [routerLink]="auth.isStaff() ? '/tickets' : '/tickets/mine'"
+        [queryParams]="{ status: 'OPEN' }"
+      >
+        <span class="kpi-label">Open</span>
+        <span class="kpi-value">{{ d.totals.open }}</span>
+        <span class="kpi-note"
+          >{{ d.totals.inProgress }} in progress · {{ d.totals.waiting }} waiting</span
+        >
+      </a>
+      <div class="card kpi" [class.kpi-alert]="d.totals.overdue > 0">
+        <span class="kpi-label">Overdue</span>
+        <span class="kpi-value">{{ d.totals.overdue }}</span>
+        <span class="kpi-note">past resolution deadline · {{ d.sla.atRiskActive }} at risk</span>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-label">High &amp; critical</span>
+        <span class="kpi-value">{{ d.totals.highPriority }}</span>
+        <span class="kpi-note">active · {{ d.totals.critical }} critical</span>
+      </div>
+      @if (auth.isStaff()) {
+        <a class="card kpi" routerLink="/tickets/unassigned">
+          <span class="kpi-label">Unassigned</span>
+          <span class="kpi-value">{{ d.totals.unassigned }}</span>
+          <span class="kpi-note">active tickets without an agent</span>
+        </a>
+      } @else {
+        <div class="card kpi">
+          <span class="kpi-label">Resolved</span>
+          <span class="kpi-value">{{ d.totals.resolved + d.totals.closed }}</span>
+          <span class="kpi-note">resolved or closed</span>
+        </div>
+      }
+    </section>
+
+    <section class="kpi-grid kpi-grid-3" aria-label="Service levels">
+      <div class="card kpi">
+        <span class="kpi-label">Response SLA met</span>
+        <span class="kpi-value">
+          @if (d.sla.responseCompliancePercent !== null) {
+            {{ d.sla.responseCompliancePercent | number: '1.0-1' }}%
+          } @else {
+            –
+          }
+        </span>
+        <span class="kpi-note">of {{ d.sla.responseMeasured }} decided tickets</span>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-label">Resolution SLA met</span>
+        <span class="kpi-value">
+          @if (d.sla.resolutionCompliancePercent !== null) {
+            {{ d.sla.resolutionCompliancePercent | number: '1.0-1' }}%
+          } @else {
+            –
+          }
+        </span>
+        <span class="kpi-note">of {{ d.sla.resolutionMeasured }} decided tickets</span>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-label">Average resolution</span>
+        <span class="kpi-value">
+          @if (d.averageResolutionHours !== null) {
+            {{ d.averageResolutionHours | number: '1.0-1' }} h
+          } @else {
+            –
+          }
+        </span>
+        <span class="kpi-note">calendar time, creation to resolution</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Created and resolved per day</h2>
+        <label class="inline-field">
+          <span class="visually-hidden">Period</span>
+          <select #days [value]="trendDays()" (change)="setTrendDays(days.value)">
+            <option value="7">Last 7 days</option>
+            <option value="14">Last 14 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+        </label>
+      </div>
+      <app-trend-chart [points]="d.trend" />
+    </section>
+
+    <div class="grid-3">
+      <section class="card">
+        <h2>By status</h2>
+        <app-bar-list [rows]="statusRows()" label="Tickets by status" />
+      </section>
+      <section class="card">
+        <h2>By priority</h2>
+        <app-bar-list [rows]="priorityRows()" label="Tickets by priority" />
+      </section>
+      <section class="card">
+        <h2>By category</h2>
+        <app-bar-list [rows]="categoryRows()" label="Tickets by category" />
+      </section>
+    </div>
+
+    @if (d.workload; as w) {
+      <div class="grid-2">
+        <section class="card">
+          <h2>Agent workload</h2>
+          <div class="table-wrap">
+            <table class="compact">
+              <thead>
+                <tr>
+                  <th scope="col">Agent</th>
+                  <th scope="col">Active</th>
+                  <th scope="col">Urgent</th>
+                  <th scope="col">Overdue</th>
+                  <th scope="col">Load</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (a of w.agents; track a.userId) {
+                  <tr>
+                    <td>{{ a.displayName }}</td>
+                    <td>{{ a.activeTickets }}</td>
+                    <td>{{ a.urgentTickets }}</td>
+                    <td [class.text-danger]="a.overdueTickets > 0">{{ a.overdueTickets }}</td>
+                    <td>
+                      <span class="badge" [class]="'load-' + a.level.toLowerCase()">{{
+                        a.level | titlecase
+                      }}</span>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="muted">No active support staff.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="card">
+          <h2>Team workload</h2>
+          <div class="table-wrap">
+            <table class="compact">
+              <thead>
+                <tr>
+                  <th scope="col">Team</th>
+                  <th scope="col">Active</th>
+                  <th scope="col">Unassigned</th>
+                  <th scope="col">Overdue</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (t of w.teams; track t.teamId) {
+                  <tr>
+                    <td>{{ t.name }}</td>
+                    <td>{{ t.activeTickets }}</td>
+                    <td>{{ t.unassignedTickets }}</td>
+                    <td [class.text-danger]="t.overdueTickets > 0">{{ t.overdueTickets }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="4" class="muted">No active teams.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <p class="muted small">{{ w.unassignedTickets }} active tickets have no agent.</p>
+        </section>
+      </div>
+    }
+  }
+}

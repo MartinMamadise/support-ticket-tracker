@@ -14,11 +14,22 @@
     <a routerLink="/tickets" class="btn">Back to tickets</a>
   </div>
 } @else {
+  @if (!canEditDetails()) {
+    <p class="panel panel-warning" role="note">
+      Work on this ticket has started, so its details can no longer be changed here. Add a comment
+      on the ticket instead.
+    </p>
+  }
   <form class="panel form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
     <div class="field">
       <label for="title">Title</label>
-      <input id="title" type="text" formControlName="title" maxlength="200"
-             [attr.aria-invalid]="errorFor('title') ? 'true' : null">
+      <input
+        id="title"
+        type="text"
+        formControlName="title"
+        maxlength="200"
+        [attr.aria-invalid]="errorFor('title') ? 'true' : null"
+      />
       @if (errorFor('title'); as message) {
         <p class="field-error">{{ message }}</p>
       }
@@ -26,8 +37,12 @@
 
     <div class="field">
       <label for="description">Description</label>
-      <textarea id="description" rows="7" formControlName="description"
-                [attr.aria-invalid]="errorFor('description') ? 'true' : null"></textarea>
+      <textarea
+        id="description"
+        rows="7"
+        formControlName="description"
+        [attr.aria-invalid]="errorFor('description') ? 'true' : null"
+      ></textarea>
       @if (errorFor('description'); as message) {
         <p class="field-error">{{ message }}</p>
       }
@@ -47,23 +62,39 @@
       </div>
 
       <div class="field">
-        <label for="status">Status</label>
-        <select id="status" formControlName="status">
-          @for (s of statuses; track s) {
-            <option [value]="s">{{ statusLabels[s] }}</option>
+        <label for="category">Category</label>
+        <select id="category" formControlName="category">
+          @for (c of categories; track c) {
+            <option [value]="c">{{ categoryLabels[c] }}</option>
           }
         </select>
-        @if (errorFor('status'); as message) {
+        @if (errorFor('category'); as message) {
           <p class="field-error">{{ message }}</p>
         }
       </div>
+
+      @if (isEdit) {
+        <div class="field">
+          <label for="status">Status</label>
+          <select id="status" formControlName="status">
+            @for (s of statuses(); track s) {
+              <option [value]="s">{{ statusLabels[s] }}</option>
+            }
+          </select>
+          @if (errorFor('status'); as message) {
+            <p class="field-error">{{ message }}</p>
+          }
+        </div>
+      }
     </div>
 
     <div class="form-actions">
       <button type="submit" class="btn btn-primary" [disabled]="saving()">
         {{ saving() ? 'Saving…' : isEdit ? 'Save changes' : 'Create ticket' }}
       </button>
-      <a class="btn" [routerLink]="isEdit && ticketId ? ['/tickets', ticketId] : ['/tickets']">Cancel</a>
+      <a class="btn" [routerLink]="isEdit && ticketId ? ['/tickets', ticketId] : ['/tickets']"
+        >Cancel</a
+      >
     </div>
   </form>
 }
