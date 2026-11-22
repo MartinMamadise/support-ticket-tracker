@@ -1,8 +1,8 @@
 # Security notes
 
-This is a portfolio project, not a hardened product. The protections below are implemented and covered by tests, but
-the backend tests have **not been executed yet** (see `AI_PROGRESS.md`), and there has been no external review or
-penetration test. Do not describe it as production-secure.
+This is a portfolio project, not a hardened product. The protections below are implemented and covered by automated
+tests that pass in CI (backend integration tests plus a Playwright end-to-end suite), but there has been no external
+review or penetration test. Do not describe it as production-secure.
 
 ## Implemented protections
 
@@ -35,8 +35,7 @@ with an `onload` handler disabled), brute-force login.
 
 ## Remaining risks and limitations
 
-- **Unverified backend.** The Spring test suite has not been run; behaviour that depends on framework details (for
-  example `@WithUserDetails` set-up, multipart handling, H2 vs MySQL SQL differences) may need fixes.
+- Automated tests run on H2 (MySQL mode); MySQL-specific behaviour is only exercised through the Docker stack.
 - Login throttling is per username, in memory and per instance. It allows a deliberate 15-minute lockout of a known
   username and is reset by a restart. No IP-based limit (behind the proxy all clients share one address unless
   forwarded headers are configured).

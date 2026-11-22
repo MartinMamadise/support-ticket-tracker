@@ -676,3 +676,26 @@ On a machine with JDK 25 and network: `cd backend && ./mvnw verify` and fix fail
   ownership-based authorization, SLA tracking with pause/reopen rules, internal notes, secure file uploads, persistent
   notifications and database-computed dashboards; Flyway migrations, Docker Compose and a GitHub Actions pipeline."
   Add "tested with JUnit/MockMvc integration tests" only after the backend suite has actually been run green.
+
+
+## Verification on GitHub Actions – COMPLETED (2026-11-22, after the 7B–18 session)
+
+The project was run manually with Docker Compose (requester / agent / admin workflow, internal-note privacy,
+attachments, SLA pause and reopen) and pushed to `feature/supporthub`. CI results:
+
+1. `mvnw` was committed without the executable bit (Windows) → `git update-index --chmod=+x backend/mvnw`.
+2. First real backend run: 290 tests, 22 failing, all test-side (see docs/TESTING.md, "What the first real run found").
+   Fixed: TicketRepositoryTest now uses the Flyway schema; SecurityConfigurationTest cookie tests use a fresh context
+   (`@DirtiesContext`) because spring-security-test's `csrf()` replaces the shared CSRF repository; `@Qualifier` for the
+   handler mapping (Actuator adds a second one); updated UserResponse field lists and OpenAPI parameter list; session
+   assertion instead of a JSESSIONID cookie (MockMvc never sets it); expected 401 message after SessionRoleRefreshFilter;
+   correct password for an admin-created account; OpenAPI enum test accepts inline enums. Real fix: Swagger
+   `sortBy` allowable values now list all seven sort fields. Dashboard maps are keyed by enum name (same JSON).
+3. Backend Dockerfile no longer uses apt-get/curl (blocked on the author's network); health check uses bash `/dev/tcp`.
+
+**Final status: all four CI jobs green** – backend 290/290, frontend 125/125 + lint + build, Docker images built,
+Playwright E2E 5/5 against docker compose. Statuses above marked IMPLEMENTED for Commands 7B–14/16–18 are now verified
+by this pipeline. Remaining limitations are listed in docs/SECURITY.md and the README.
+
+Resume wording can now include: "covered by 290 backend integration/unit tests, 125 frontend tests and Playwright
+end-to-end tests in a GitHub Actions pipeline."

@@ -5,9 +5,9 @@ service-level targets, and administrators manage accounts, teams and SLA policie
 **Angular 22** and **MySQL 8**, with Flyway migrations, session-based authentication, role- and ownership-based
 authorization, Docker Compose and a GitHub Actions pipeline.
 
-> **Status:** portfolio / learning project. The frontend is built and unit-tested; the backend code and its test suite
-> were written without being able to run Maven in the development environment, so run `./mvnw verify` first
-> (see [Known limitations](#known-limitations) and `docs/AI_PROGRESS.md`).
+> **Status:** portfolio / learning project. Every push runs the full pipeline on GitHub Actions: 290 backend tests
+> (JUnit, MockMvc, H2 with the real migrations), 125 frontend tests, lint and build, both Docker images, and a
+> Playwright end-to-end suite against the complete stack in Docker Compose.
 
 ## The problem it solves
 
@@ -195,7 +195,7 @@ they are not converted, so on a server that was not running in UTC they read as 
 
 | What | Command | Notes |
 |---|---|---|
-| Backend unit + integration tests | `cd backend && ./mvnw verify` | JUnit 5, Mockito, MockMvc, H2 with the real migrations; no MySQL needed |
+| Backend unit + integration tests | `cd backend && ./mvnw verify` | JUnit 5, Mockito, MockMvc, H2 with the real migrations; 290 tests; no MySQL needed |
 | Frontend unit tests | `cd frontend && npm run test:ci` | Vitest, 125 tests |
 | Frontend lint | `npm run lint` | strict `tsc` for app, specs and E2E, plus Prettier |
 | Frontend build | `npm run build` | production bundle |
@@ -236,12 +236,9 @@ Full model, flows and security notes: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.m
 
 ## Known limitations
 
-- **Backend not yet compiled or run by the author's tooling.** The development sandbox could not reach Maven Central
-  and had only JDK 21, so none of the backend tests from Commands 2–18 have been executed. Pure-Java parts (SLA maths,
-  file type detection, filename sanitising, workflow, login limiter) were run in a scratch harness. First step on a
-  machine with JDK 25: `cd backend && ./mvnw verify`, then fix what it reports.
-- Docker images, the nginx configuration and the E2E suite were written but not run (no Docker daemon or browser
-  download in the sandbox); `docker compose config` validates.
+- The automated tests run on H2 in MySQL mode; MySQL 8 itself is exercised by the Docker Compose stack (manual
+  testing and the end-to-end suite), not by the unit/integration suite.
+- The end-to-end suite covers the main workflow (5 scenarios); edge cases are covered by the backend integration tests.
 - SLA uses calendar time (no business hours or holidays). Ticket categories are a fixed list.
 - Login throttling is in memory and per instance; no password-reset e-mail; no e-mail notifications (the
   `NotificationChannel` interface is the extension point).

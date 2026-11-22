@@ -29,7 +29,23 @@ credential. E2E creates its own accounts (`e2e.*`) through the admin API in `e2e
 
 ## Current results
 
-See `AI_PROGRESS.md` for the latest executed results. At the end of the 7B–18 session: frontend 125/125 unit tests
-passed, lint and production build passed; 292 backend test methods written or updated but **not executed** (no Maven
-access); 57 checks of the pure-Java classes passed in a scratch harness; E2E suite type-checks and lists 5 tests but
-was not run (no browser or Docker daemon).
+All green on GitHub Actions (pull request `feature/supporthub`, 2026-11-22):
+
+| Job | Result |
+|---|---|
+| Backend `./mvnw -B verify` | 290 tests, 0 failures, 0 errors |
+| Frontend lint, `test:ci`, build | 125 tests passed; lint and production build passed |
+| Docker | `docker compose config` valid; backend and frontend images built |
+| End-to-end | 5 Playwright scenarios passed against `docker compose up` (MySQL 8.4, API, nginx) |
+
+The full stack was also tested manually (requester, agent and admin in separate browsers) before the first push.
+
+### What the first real run found
+
+The backend suite had been written without being able to run it. Its first CI run (290 tests, 22 failures)
+found only test-side problems, fixed in follow-up commits: a repository test that used a Hibernate-generated schema
+instead of the migrations, a test helper that changed shared CSRF state, two `RequestMappingHandlerMapping` beans once
+Actuator was added, outdated field lists, a cookie that MockMvc never produces, an unreachable error message, a wrong
+password in one test, and an OpenAPI test that assumed enums are shared components. One real documentation bug was
+found (the Swagger annotation listed only five of the seven sort fields). The CI job itself needed `mvnw` committed
+as executable.
