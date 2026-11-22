@@ -80,10 +80,10 @@ class OpenApiDocumentationTest {
         assertThat(sortFields).containsExactlyInAnyOrderElementsOf(
                 Arrays.stream(TicketSortField.values()).map(TicketSortField::apiName).toList());
 
-        Map<String, Object> schemas = JsonPath.read(docs, "$.components.schemas");
-        assertThat(enumValues(schemas, "TicketStatus"))
+        // springdoc may write enum values inline on each property or as a shared component; accept either.
+        assertThat(propertyEnum(docs, "TicketResponse", "status"))
                 .containsExactlyInAnyOrderElementsOf(Arrays.stream(TicketStatus.values()).map(Enum::name).toList());
-        assertThat(enumValues(schemas, "TicketPriority"))
+        assertThat(propertyEnum(docs, "TicketResponse", "priority"))
                 .containsExactlyInAnyOrderElementsOf(Arrays.stream(TicketPriority.values()).map(Enum::name).toList());
     }
 
@@ -112,10 +112,28 @@ class OpenApiDocumentationTest {
                 .andExpect(jsonPath("$.paths['/api/auth/csrf'].get").exists());
     }
 
+    /**
+     * The documented enum values of a property: inline ({@code enum}), via {@code $ref} to a component, or via
+     * {@code allOf: [{$ref}]} (used when the property adds its own description).
+     */
     @SuppressWarnings("unchecked")
-    private static List<String> enumValues(Map<String, Object> schemas, String schemaName) {
-        Map<String, Object> schema = (Map<String, Object>) schemas.get(schemaName);
-        assertThat(schema).as("schema %s", schemaName).isNotNull();
-        return (List<String>) schema.get("enum");
+    private static List<String> propertyEnum(String docs, String schemaName, String property) {
+        Map<String, Object> schemas = JsonPath.read(docs, "$.components.schemas");
+        Map<String, Object> owner = (Map<String, Object>) schemas.get(schemaName);
+        assertThat(owner).as("schema %s", schemaName).isNotNull();
+        Map<String, Object> prop = (Map<String, Object>) ((Map<String, Object>) owner.get("properties")).get(property);
+        assertThat(prop).as("property %s.%s", schemaName, property).isNotNull();
+        if (prop.get("allOf") instanceof List<?> parts) {
+            prop = parts.stream().map(part -> (Map<String, Object>) part)
+                    .filter(part -> part.containsKey("$ref") || part.containsKey("enum"))
+                    .findFirst().orElse(prop);
+        }
+        if (prop.get("$ref") instanceof String ref) {
+            prop = (Map<String, Object>) schemas.get(ref.substring(ref.lastIndexOf('/') + 1));
+            assertThat(prop).as("referenced schema %s", ref).isNotNull();
+        }
+        List<String> values = (List<String>) prop.get("enum");
+        assertThat(values).as("enum values of %s.%s in %s", schemaName, property, prop).isNotNull();
+        return values;
     }
 }
