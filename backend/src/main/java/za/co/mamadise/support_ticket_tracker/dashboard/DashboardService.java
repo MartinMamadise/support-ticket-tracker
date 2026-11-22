@@ -81,7 +81,7 @@ public class DashboardService {
 
         return new DashboardResponse(
                 viewer.isAdmin() ? "all" : viewer.isAgent() ? "work-queue" : "own",
-                totals, byStatus, byPriority, byCategory,
+                totals, byName(byStatus), byName(byPriority), byName(byCategory),
                 sla(viewer, now),
                 averageResolutionHours(viewer),
                 trend(viewer, now, days),
@@ -188,6 +188,13 @@ public class DashboardService {
         Root<Ticket> r = q.from(Ticket.class);
         q.select(cb.count(r)).where(TicketAccessPolicy.visibility(viewer, r, cb), condition.apply(r, cb));
         return em.createQuery(q).getSingleResult();
+    }
+
+    /** Enum-keyed counts as name-keyed, in declaration order (see DashboardResponse for why). */
+    private static <E extends Enum<E>> Map<String, Long> byName(Map<E, Long> counts) {
+        Map<String, Long> result = new LinkedHashMap<>();
+        counts.forEach((key, value) -> result.put(key.name(), value));
+        return result;
     }
 
     private static Double percent(long part, long whole) {

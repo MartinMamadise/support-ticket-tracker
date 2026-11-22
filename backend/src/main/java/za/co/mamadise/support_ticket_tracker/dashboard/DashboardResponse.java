@@ -6,9 +6,6 @@ import java.util.Map;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import za.co.mamadise.support_ticket_tracker.ticket.TicketCategory;
-import za.co.mamadise.support_ticket_tracker.ticket.TicketPriority;
-import za.co.mamadise.support_ticket_tracker.ticket.TicketStatus;
 
 /**
  * Dashboard figures, computed in SQL over the tickets the caller may see (so a USER sees statistics about their own
@@ -18,9 +15,11 @@ import za.co.mamadise.support_ticket_tracker.ticket.TicketStatus;
 public record DashboardResponse(
         @Schema(description = "visible = caller's own tickets (USER), work queue (SUPPORT_AGENT) or all (ADMIN)") String scope,
         Totals totals,
-        Map<TicketStatus, Long> byStatus,
-        Map<TicketPriority, Long> byPriority,
-        Map<TicketCategory, Long> byCategory,
+        // Keyed by enum name (String, not the enum type): swagger-core replaces an enum's documented schema with a
+        // plain string when the enum is used as a map key, which would drop the value lists of TicketStatus etc.
+        @Schema(description = "Ticket count per status name (every TicketStatus value is present)") Map<String, Long> byStatus,
+        @Schema(description = "Ticket count per priority name (every TicketPriority value is present)") Map<String, Long> byPriority,
+        @Schema(description = "Ticket count per category name (every TicketCategory value is present)") Map<String, Long> byCategory,
         Sla sla,
         @Schema(description = "Average calendar hours from creation to resolution, over resolved tickets; null when none")
         Double averageResolutionHours,
