@@ -59,7 +59,7 @@ class AdministrationAndAssignmentIntegrationTest extends ApiTestSupport {
                 .andExpect(jsonPath("$.role").value("USER"))
                 .andExpect(jsonPath("$.passwordHash").doesNotExist())
                 .andExpect(content().string(not(containsString("Welcome-2026x"))));
-        signIn("new.person");
+        signIn("new.person", "Welcome-2026x");
 
         postAs(admin, "/api/admin/users", """
                 {"username":"weak","email":"weak@example.com","password":"short"}""")

@@ -85,6 +85,9 @@ class SecurityConfigurationTest {
                 .andExpect(content().string(not(containsString("at za.co"))));
     }
 
+    // Fresh application context: spring-security-test's csrf() helper, used by other tests sharing the cached context,
+    // replaces the CSRF token repository for the rest of that context, which hides the XSRF-TOKEN cookie.
+    @org.springframework.test.annotation.DirtiesContext(methodMode = org.springframework.test.annotation.DirtiesContext.MethodMode.BEFORE_METHOD)
     @Test
     void rejectedAnonymousRequestDoesNotCreateASession() throws Exception {
         MvcResult result = mockMvc.perform(get("/api/tickets")).andExpect(status().isUnauthorized())
@@ -127,6 +130,9 @@ class SecurityConfigurationTest {
                 .andExpect(jsonPath("$.message").value("Invalid or missing CSRF token"));
     }
 
+    // Fresh application context: spring-security-test's csrf() helper, used by other tests sharing the cached context,
+    // replaces the CSRF token repository for the rest of that context, which hides the XSRF-TOKEN cookie.
+    @org.springframework.test.annotation.DirtiesContext(methodMode = org.springframework.test.annotation.DirtiesContext.MethodMode.BEFORE_METHOD)
     @Test
     void csrfEndpointIsPublicAndSetsAScriptReadableCookie() throws Exception {
         mockMvc.perform(get("/api/auth/csrf"))
@@ -135,6 +141,9 @@ class SecurityConfigurationTest {
                 .andExpect(cookie().httpOnly("XSRF-TOKEN", false));
     }
 
+    // Fresh application context: spring-security-test's csrf() helper, used by other tests sharing the cached context,
+    // replaces the CSRF token repository for the rest of that context, which hides the XSRF-TOKEN cookie.
+    @org.springframework.test.annotation.DirtiesContext(methodMode = org.springframework.test.annotation.DirtiesContext.MethodMode.BEFORE_METHOD)
     @Test
     void anyResponseCarriesTheCsrfCookieSoTheClientCanBootstrapFromAnyCall() throws Exception {
         mockMvc.perform(get("/api/auth/me"))
@@ -142,6 +151,9 @@ class SecurityConfigurationTest {
                 .andExpect(cookie().exists("XSRF-TOKEN"));
     }
 
+    // Fresh application context: spring-security-test's csrf() helper, used by other tests sharing the cached context,
+    // replaces the CSRF token repository for the rest of that context, which hides the XSRF-TOKEN cookie.
+    @org.springframework.test.annotation.DirtiesContext(methodMode = org.springframework.test.annotation.DirtiesContext.MethodMode.BEFORE_METHOD)
     @Test
     void cookieTokenFromTheCsrfEndpointIsAcceptedInTheHeader() throws Exception {
         Cookie token = mockMvc.perform(get("/api/auth/csrf")).andReturn().getResponse().getCookie("XSRF-TOKEN");

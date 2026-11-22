@@ -80,7 +80,7 @@ class RoleTest {
 
         assertThat(response.role()).isEqualTo(Role.SUPPORT_AGENT);
         assertThat(Arrays.stream(UserResponse.class.getRecordComponents()).map(c -> c.getName()))
-                .containsExactly("id", "username", "email", "role");
+                .containsExactly("id", "username", "email", "fullName", "role", "enabled", "createdAt");
     }
 
     @Test

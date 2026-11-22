@@ -72,7 +72,7 @@ public class TicketController {
             @RequestParam(required = false) String size,
             @Parameter(description = "Sort field (case-insensitive). `priority` sorts LOW < MEDIUM < HIGH and `status` sorts "
                     + "OPEN < IN_PROGRESS < RESOLVED < CLOSED < CANCELLED.",
-                    schema = @Schema(allowableValues = {"id", "createdAt", "updatedAt", "priority", "status"},
+                    schema = @Schema(allowableValues = {"id", "createdAt", "updatedAt", "priority", "status", "category", "resolutionDueAt"},
                             defaultValue = "createdAt"))
             @RequestParam(required = false) String sortBy,
             @Parameter(description = "Sort direction (case-insensitive).",

@@ -68,7 +68,8 @@ class OpenApiDocumentationTest {
 
         List<String> names = JsonPath.read(docs, LIST + ".parameters[*].name");
         assertThat(names).containsExactlyInAnyOrder(
-                "page", "size", "sortBy", "direction", "status", "priority", "createdFrom", "createdTo", "q");
+                "page", "size", "sortBy", "direction", "status", "priority", "createdFrom", "createdTo", "q",
+                "category", "view", "teamId", "assigneeId", "requesterId");
     }
 
     @Test

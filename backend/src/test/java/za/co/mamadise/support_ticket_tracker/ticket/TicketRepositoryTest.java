@@ -5,24 +5,40 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Instant;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import za.co.mamadise.support_ticket_tracker.TestDatabase;
+
 /**
- * Repository slice test on an embedded H2 database. The slice builds its own schema from the entity mapping
- * (Flyway is switched off here) so it stays fast and independent of the migration setup; that the migrations
- * produce a schema matching the entities is verified by {@link DatabaseMigrationTest}.
+ * Repository test against the real schema: the same Flyway migrations as production on H2 (MySQL mode). An earlier
+ * version let Hibernate generate its own schema, which did not match the migrations (its generated CHECK constraints
+ * rejected valid rows), so it tested a database that never exists in production.
  */
-@DataJpaTest(properties = {
-        "spring.flyway.enabled=false",
-        "spring.jpa.hibernate.ddl-auto=create-drop"
-})
+@SpringBootTest
+@Import(TestDatabase.class)
 class TicketRepositoryTest {
 
     @Autowired
     private TicketRepository ticketRepository;
+
+    @Autowired
+    private TestDatabase database;
+
+    @BeforeEach
+    void clean() {
+        database.reset();
+    }
+
+    @AfterEach
+    void cleanAfter() {
+        database.reset();
+    }
 
     private Ticket newTicket(String title, TicketStatus status, TicketPriority priority) {
         Ticket ticket = new Ticket();

@@ -77,7 +77,8 @@ class UserServiceTest {
 
         assertThat(created.toString()).doesNotContain(PASSWORD).doesNotContain("$2");
         assertThat(UserResponse.class.getRecordComponents()).extracting("name")
-                .containsExactly("id", "username", "email");
+                .containsExactly("id", "username", "email", "fullName", "role", "enabled", "createdAt")
+                .noneMatch(name -> name.toString().toLowerCase().contains("password"));
     }
 
     @Test

@@ -41,9 +41,13 @@ public abstract class ApiTestSupport {
     }
 
     protected MockHttpSession signIn(String username) throws Exception {
+        return signIn(username, TestDatabase.PASSWORD);
+    }
+
+    protected MockHttpSession signIn(String username, String password) throws Exception {
         return (MockHttpSession) mockMvc.perform(post("/api/auth/login").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"" + username + "\",\"password\":\"" + TestDatabase.PASSWORD + "\"}"))
+                        .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
                 .andExpect(status().isOk()).andReturn().getRequest().getSession(false);
     }
 

@@ -11,9 +11,8 @@ COPY src/ src/
 RUN ./mvnw -B -q -DskipTests package && cp target/*.jar /src/app.jar
 
 FROM eclipse-temurin:25-jre
-# curl is only used by the container health check.
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* \
-    && groupadd --system app && useradd --system --gid app --home /app app \
+# No packages are installed (no apt-get), so the build does not need Ubuntu's package servers.
+RUN groupadd --system app && useradd --system --gid app --home /app app \
     && mkdir -p /data/attachments && chown -R app:app /data
 WORKDIR /app
 COPY --from=build /src/app.jar app.jar
@@ -21,6 +20,7 @@ USER app
 ENV ATTACHMENTS_DIR=/data/attachments \
     JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -Duser.timezone=UTC"
 EXPOSE 8080
-HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=5 \
-    CMD curl -fsS http://localhost:8080/actuator/health || exit 1
+# Health check without curl: bash opens a TCP connection to the health endpoint and looks for "UP".
+HEALTHCHECK --interval=15s --timeout=5s --start-period=90s --retries=5 \
+    CMD bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf "GET /actuator/health HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3 && grep -q UP <&3'
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

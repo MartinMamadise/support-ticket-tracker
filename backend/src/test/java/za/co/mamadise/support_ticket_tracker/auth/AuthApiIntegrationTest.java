@@ -80,8 +80,10 @@ class AuthApiIntegrationTest {
                 .andExpect(jsonPath("$.passwordHash").doesNotExist())
                 .andExpect(content().string(not(containsString(PASSWORD))))
                 .andExpect(content().string(not(containsString("$2"))))
-                .andExpect(cookie().exists("JSESSIONID"))
-                .andExpect(cookie().httpOnly("JSESSIONID", true));
+                // MockMvc never emits a JSESSIONID cookie (the servlet container does that; its HttpOnly/Secure flags are
+                // checked in MainConfigurationTest), so assert the session itself: it exists and holds the login.
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.request()
+                        .sessionAttribute("SPRING_SECURITY_CONTEXT", org.hamcrest.Matchers.notNullValue()));
     }
 
     @Test
@@ -176,9 +178,10 @@ class AuthApiIntegrationTest {
         MockHttpSession session = loginSession();
         database.reset();
 
+        // SessionRoleRefreshFilter (7A) ends the session before the controller runs, so the generic 401 applies.
         mockMvc.perform(get("/api/auth/me").session(session))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.message").value("Session is no longer valid"));
+                .andExpect(jsonPath("$.message").value("Authentication required"));
     }
 
     @Test

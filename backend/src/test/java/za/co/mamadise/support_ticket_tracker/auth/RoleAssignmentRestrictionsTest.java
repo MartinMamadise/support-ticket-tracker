@@ -25,6 +25,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 class RoleAssignmentRestrictionsTest {
 
     @Autowired
+    @org.springframework.beans.factory.annotation.Qualifier("requestMappingHandlerMapping") // Actuator adds a second one
     private RequestMappingHandlerMapping handlerMapping;
 
     private List<String> patterns(RequestMappingInfo info) {
