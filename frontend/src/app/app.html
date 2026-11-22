@@ -1,15 +1,77 @@
-<header class="app-header">
-  <div class="container header-inner">
-    <a routerLink="/tickets" class="brand">Support Ticket Tracker</a>
-    <nav aria-label="Main">
-      <a routerLink="/tickets" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Tickets</a>
-      <a routerLink="/tickets/new" routerLinkActive="active">New ticket</a>
-    </nav>
+<a class="skip-link" href="#main">Skip to content</a>
+
+@if (auth.user(); as user) {
+  <div class="shell">
+    <aside class="sidebar">
+      <a routerLink="/dashboard" class="brand">
+        <span class="brand-mark" aria-hidden="true">SH</span>
+        <span>SupportHub</span>
+      </a>
+      <nav aria-label="Main">
+        <p class="nav-heading">Work</p>
+        <ul class="nav-list">
+          @for (item of workItems(); track item.path) {
+            <li>
+              <a
+                [routerLink]="item.path"
+                routerLinkActive="active"
+                [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
+                >{{ item.label }}</a
+              >
+            </li>
+          }
+        </ul>
+        @if (adminItems().length > 0) {
+          <p class="nav-heading">Administration</p>
+          <ul class="nav-list">
+            @for (item of adminItems(); track item.path) {
+              <li>
+                <a [routerLink]="item.path" routerLinkActive="active">{{ item.label }}</a>
+              </li>
+            }
+          </ul>
+        }
+      </nav>
+    </aside>
+
+    <div class="shell-main">
+      <header class="topbar">
+        <div class="topbar-end">
+          <a
+            routerLink="/notifications"
+            class="bell"
+            routerLinkActive="active"
+            [attr.aria-label]="
+              inbox.unread() > 0 ? 'Notifications, ' + inbox.unread() + ' unread' : 'Notifications'
+            "
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path
+                d="M12 3a6 6 0 0 0-6 6v3.6l-1.6 2.7A1 1 0 0 0 5.3 17h13.4a1 1 0 0 0 .9-1.7L18 12.6V9a6 6 0 0 0-6-6Zm0 18a2.5 2.5 0 0 0 2.4-2h-4.8A2.5 2.5 0 0 0 12 21Z"
+                fill="currentColor"
+              />
+            </svg>
+            @if (inbox.unread() > 0) {
+              <span class="bell-count">{{ inbox.unread() > 99 ? '99+' : inbox.unread() }}</span>
+            }
+          </a>
+          <a routerLink="/profile" class="user-chip" [attr.title]="user.email">
+            <span class="user-name">{{ displayName() }}</span>
+            <span class="user-role">{{ roleLabels[user.role] }}</span>
+          </a>
+          <button type="button" class="btn btn-sm" (click)="signOut()">Sign out</button>
+        </div>
+      </header>
+      <main id="main" class="content" tabindex="-1">
+        <router-outlet />
+      </main>
+    </div>
   </div>
-</header>
+} @else {
+  <main id="main" class="content content-guest" tabindex="-1">
+    <router-outlet />
+  </main>
+}
 
 <app-notifications />
-
-<main class="container">
-  <router-outlet />
-</main>
+<app-confirm-dialog />

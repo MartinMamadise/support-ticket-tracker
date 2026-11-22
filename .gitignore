@@ -14,3 +14,9 @@ node_modules/
 *.iml
 .DS_Store
 Thumbs.db
+
+# Uploaded attachments (local runs) and test output
+data/
+backend/data/
+frontend/test-results/
+frontend/playwright-report/

@@ -7,7 +7,7 @@ import { RouterLink } from '@angular/router';
   template: `
     <div class="page-header"><h1>Page not found</h1></div>
     <p>The page you requested does not exist.</p>
-    <a routerLink="/tickets" class="btn">Back to tickets</a>
+    <a routerLink="/dashboard" class="btn">Back to the dashboard</a>
   `,
 })
 export class NotFound {}

@@ -6,11 +6,20 @@ import { NotificationService } from './notification';
   template: `
     <div class="notices" aria-live="polite">
       @for (notice of service.notices(); track notice.id) {
-        <div class="notice" [class.notice-error]="notice.kind === 'error'"
-             [attr.role]="notice.kind === 'error' ? 'alert' : 'status'">
+        <div
+          class="notice"
+          [class.notice-error]="notice.kind === 'error'"
+          [attr.role]="notice.kind === 'error' ? 'alert' : 'status'"
+        >
           <span>{{ notice.text }}</span>
-          <button type="button" class="notice-close" aria-label="Dismiss message"
-                  (click)="service.dismiss(notice.id)">&times;</button>
+          <button
+            type="button"
+            class="notice-close"
+            aria-label="Dismiss message"
+            (click)="service.dismiss(notice.id)"
+          >
+            &times;
+          </button>
         </div>
       }
     </div>

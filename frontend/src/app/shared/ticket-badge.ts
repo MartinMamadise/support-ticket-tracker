@@ -1,7 +1,9 @@
 import { Component, computed, input } from '@angular/core';
 import {
+  CATEGORY_LABELS,
   PRIORITY_LABELS,
   STATUS_LABELS,
+  TicketCategory,
   TicketPriority,
   TicketStatus,
 } from '../tickets/ticket.model';
@@ -12,13 +14,14 @@ import {
   template: `<span class="badge" [class]="cssClass()">{{ label() }}</span>`,
 })
 export class TicketBadge {
-  readonly kind = input.required<'status' | 'priority'>();
-  readonly value = input.required<TicketStatus | TicketPriority>();
+  readonly kind = input.required<'status' | 'priority' | 'category'>();
+  readonly value = input.required<TicketStatus | TicketPriority | TicketCategory>();
 
   protected readonly label = computed(() => {
     const value = this.value();
+    const kind = this.kind();
     const labels: Record<string, string> =
-      this.kind() === 'status' ? STATUS_LABELS : PRIORITY_LABELS;
+      kind === 'status' ? STATUS_LABELS : kind === 'priority' ? PRIORITY_LABELS : CATEGORY_LABELS;
     return labels[value] ?? value;
   });
 

@@ -1,0 +1,66 @@
+# Local full stack: MySQL + Spring Boot API + Angular (nginx). Usage:
+#   cp .env.example .env   (then set the passwords)
+#   docker compose up --build
+#   open http://localhost:8080
+# Secrets come only from .env (never committed). The stack runs over plain http on localhost, so Secure cookies are
+# switched off here; put TLS in front and set SESSION_COOKIE_SECURE=true for anything beyond local use.
+name: supporthub
+
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-support_ticket_tracker}
+      MYSQL_USER: ${DB_USERNAME:?set DB_USERNAME in .env}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      TZ: UTC
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-support_ticket_tracker}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
+      SESSION_COOKIE_SECURE: "false"
+      CORS_ALLOWED_ORIGINS: ""
+      ATTACHMENTS_DIR: /data/attachments
+      BOOTSTRAP_USER_ENABLED: ${BOOTSTRAP_USER_ENABLED:-false}
+      BOOTSTRAP_USER_USERNAME: ${BOOTSTRAP_USER_USERNAME:-}
+      BOOTSTRAP_USER_EMAIL: ${BOOTSTRAP_USER_EMAIL:-}
+      BOOTSTRAP_USER_PASSWORD: ${BOOTSTRAP_USER_PASSWORD:-}
+      BOOTSTRAP_USER_ROLE: ${BOOTSTRAP_USER_ROLE:-ADMIN}
+    volumes:
+      - attachments:/data/attachments
+    # Only reachable from this machine (Swagger UI with SPRING_PROFILES_ACTIVE=dev). The browser uses nginx.
+    ports:
+      - "127.0.0.1:8081:8080"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+
+volumes:
+  db-data:
+  attachments:

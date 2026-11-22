@@ -1,0 +1,139 @@
+package za.co.mamadise.support_ticket_tracker;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+
+import com.jayway.jsonpath.JsonPath;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.web.servlet.MockMvc;
+
+import za.co.mamadise.support_ticket_tracker.ticket.TicketPriority;
+import za.co.mamadise.support_ticket_tracker.ticket.TicketSortField;
+import za.co.mamadise.support_ticket_tracker.ticket.TicketStatus;
+
+/** Checks the generated OpenAPI document describes the real API, so documentation cannot silently drift. */
+@SpringBootTest
+@AutoConfigureMockMvc
+class OpenApiDocumentationTest {
+
+    private static final String LIST = "$.paths['/api/tickets'].get";
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    private String apiDocs() throws Exception {
+        return mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+    }
+
+    @Test
+    void documentHasTitleAndAllTicketOperations() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.info.title").value("SupportHub Ticket API"))
+                .andExpect(jsonPath("$.paths['/api/tickets'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/tickets'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/tickets/{id}'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/tickets/{id}'].put").exists())
+                .andExpect(jsonPath("$.paths['/api/tickets/{id}'].delete").exists());
+    }
+
+    @Test
+    void responseCodesAreDocumented() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(jsonPath(LIST + ".responses['200']").exists())
+                .andExpect(jsonPath(LIST + ".responses['400']").exists())
+                .andExpect(jsonPath("$.paths['/api/tickets'].post.responses['201']").exists())
+                .andExpect(jsonPath("$.paths['/api/tickets'].post.responses['400']").exists())
+                .andExpect(jsonPath("$.paths['/api/tickets'].post.responses['409']").exists())
+                .andExpect(jsonPath("$.paths['/api/tickets/{id}'].get.responses['404']").exists())
+                .andExpect(jsonPath("$.paths['/api/tickets/{id}'].put.responses['409']").exists())
+                .andExpect(jsonPath("$.paths['/api/tickets/{id}'].delete.responses['204']").exists());
+    }
+
+    @Test
+    void listParametersCoverPagingFilteringSortingAndSearch() throws Exception {
+        String docs = apiDocs();
+
+        List<String> names = JsonPath.read(docs, LIST + ".parameters[*].name");
+        assertThat(names).containsExactlyInAnyOrder(
+                "page", "size", "sortBy", "direction", "status", "priority", "createdFrom", "createdTo", "q",
+                "category", "view", "teamId", "assigneeId", "requesterId");
+    }
+
+    @Test
+    void documentedEnumValuesMatchTheCode() throws Exception {
+        String docs = apiDocs();
+
+        List<String> sortFields = JsonPath.read(docs, LIST + ".parameters[?(@.name=='sortBy')].schema.enum[*]");
+        assertThat(sortFields).containsExactlyInAnyOrderElementsOf(
+                Arrays.stream(TicketSortField.values()).map(TicketSortField::apiName).toList());
+
+        // springdoc may write enum values inline on each property or as a shared component; accept either.
+        assertThat(propertyEnum(docs, "TicketResponse", "status"))
+                .containsExactlyInAnyOrderElementsOf(Arrays.stream(TicketStatus.values()).map(Enum::name).toList());
+        assertThat(propertyEnum(docs, "TicketResponse", "priority"))
+                .containsExactlyInAnyOrderElementsOf(Arrays.stream(TicketPriority.values()).map(Enum::name).toList());
+    }
+
+    @Test
+    void dtoSchemasAreDocumented() throws Exception {
+        String docs = apiDocs();
+
+        Map<String, Object> schemas = JsonPath.read(docs, "$.components.schemas");
+        assertThat(schemas).containsKeys("TicketRequest", "TicketResponse", "ApiError");
+        assertThat(schemas.keySet()).anyMatch(name -> name.startsWith("PageResponse"));
+
+        List<String> required = JsonPath.read(docs, "$.components.schemas.TicketRequest.required");
+        assertThat(required).contains("title", "description", "priority");
+        Map<String, Object> responseFields = JsonPath.read(docs, "$.components.schemas.TicketResponse.properties");
+        assertThat(responseFields).containsKeys("id", "status", "createdAt", "resolvedAt", "version", "allowedTransitions");
+    }
+
+    @Test
+    void sessionCookieAuthenticationAndAuthEndpointsAreDocumented() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(jsonPath("$.components.securitySchemes.sessionCookie.type").value("apiKey"))
+                .andExpect(jsonPath("$.components.securitySchemes.sessionCookie.in").value("cookie"))
+                .andExpect(jsonPath("$.security[0].sessionCookie").exists())
+                .andExpect(jsonPath("$.paths['/api/auth/login'].post.responses['401']").exists())
+                .andExpect(jsonPath("$.paths['/api/auth/me'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/auth/csrf'].get").exists());
+    }
+
+    /**
+     * The documented enum values of a property: inline ({@code enum}), via {@code $ref} to a component, or via
+     * {@code allOf: [{$ref}]} (used when the property adds its own description).
+     */
+    @SuppressWarnings("unchecked")
+    private static List<String> propertyEnum(String docs, String schemaName, String property) {
+        Map<String, Object> schemas = JsonPath.read(docs, "$.components.schemas");
+        Map<String, Object> owner = (Map<String, Object>) schemas.get(schemaName);
+        assertThat(owner).as("schema %s", schemaName).isNotNull();
+        Map<String, Object> prop = (Map<String, Object>) ((Map<String, Object>) owner.get("properties")).get(property);
+        assertThat(prop).as("property %s.%s", schemaName, property).isNotNull();
+        if (prop.get("allOf") instanceof List<?> parts) {
+            prop = parts.stream().map(part -> (Map<String, Object>) part)
+                    .filter(part -> part.containsKey("$ref") || part.containsKey("enum"))
+                    .findFirst().orElse(prop);
+        }
+        if (prop.get("$ref") instanceof String ref) {
+            prop = (Map<String, Object>) schemas.get(ref.substring(ref.lastIndexOf('/') + 1));
+            assertThat(prop).as("referenced schema %s", ref).isNotNull();
+        }
+        List<String> values = (List<String>) prop.get("enum");
+        assertThat(values).as("enum values of %s.%s in %s", schemaName, property, prop).isNotNull();
+        return values;
+    }
+}

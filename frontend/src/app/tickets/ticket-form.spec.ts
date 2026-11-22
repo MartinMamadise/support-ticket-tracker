@@ -6,16 +6,14 @@ import { vi } from 'vitest';
 import { NotificationService } from '../shared/notification';
 import { TicketForm } from './ticket-form';
 import { Ticket } from './ticket.model';
+import { makeTicket } from '../testing/fixtures';
 
-const saved: Ticket = {
+const saved: Ticket = makeTicket({
   id: 12,
   title: 'VPN down',
   description: 'Cannot connect',
-  status: 'OPEN',
   priority: 'HIGH',
-  createdAt: '2026-11-01T09:00:00',
-  updatedAt: '2026-11-01T09:00:00',
-};
+});
 
 describe('TicketForm', () => {
   let fixture: ComponentFixture<TicketForm>;
@@ -92,8 +90,8 @@ describe('TicketForm', () => {
     expect(req.request.body).toEqual({
       title: 'VPN down',
       description: 'Cannot connect',
-      status: 'OPEN',
       priority: 'HIGH',
+      category: 'OTHER',
     });
     req.flush(saved, { status: 201, statusText: 'Created' });
     await fixture.whenStable();
@@ -111,7 +109,10 @@ describe('TicketForm', () => {
     fill('description', 'Valid description');
     await submit();
     http.expectOne('/api/tickets').flush(
-      { message: 'Validation failed', fieldErrors: { priority: 'Priority must be one of: LOW, MEDIUM, HIGH' } },
+      {
+        message: 'Validation failed',
+        fieldErrors: { priority: 'Priority must be one of: LOW, MEDIUM, HIGH' },
+      },
       { status: 400, statusText: 'Bad Request' },
     );
     await fixture.whenStable();
@@ -137,21 +138,83 @@ describe('TicketForm', () => {
     const req = http.expectOne('/api/tickets/12');
     expect(req.request.method).toBe('PUT');
     expect(req.request.body.title).toBe('VPN restored');
+    expect(req.request.body.version).toBe(0);
     req.flush({ ...saved, title: 'VPN restored' });
     await fixture.whenStable();
 
     expect(TestBed.inject(NotificationService).notices()[0].text).toBe('Ticket #12 updated.');
   });
 
-  it('edit mode: shows an error when the ticket does not exist', async () => {
-    setup('99');
-    http.expectOne('/api/tickets/99').flush(
-      { message: 'Ticket not found with ID: 99' },
-      { status: 404, statusText: 'Not Found' },
+  it('create mode: does not offer a status choice', async () => {
+    setup(null);
+    await fixture.whenStable();
+
+    expect(el.querySelector('#status')).toBeNull();
+  });
+
+  it('edit mode: offers only the current status and the allowed transitions', async () => {
+    setup('12');
+    http.expectOne('/api/tickets/12').flush(saved);
+    await fixture.whenStable();
+
+    const options = Array.from(el.querySelectorAll('#status option')).map((o) =>
+      o.textContent?.trim(),
+    );
+    expect(options).toEqual(['Open', 'In progress', 'Cancelled']);
+  });
+
+  it('edit mode: shows the workflow error when a status change is rejected', async () => {
+    setup('12');
+    http.expectOne('/api/tickets/12').flush(saved);
+    await fixture.whenStable();
+    await submit();
+
+    http.expectOne('/api/tickets/12').flush(
+      {
+        message:
+          'Cannot change ticket status from OPEN to RESOLVED. Allowed: [IN_PROGRESS, CANCELLED].',
+      },
+      { status: 409, statusText: 'Conflict' },
     );
     await fixture.whenStable();
 
-    expect(el.querySelector('[role="alert"]')?.textContent).toContain('Ticket not found with ID: 99');
+    expect(TestBed.inject(NotificationService).notices()[0].text).toContain(
+      'Cannot change ticket status',
+    );
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('edit mode: shows the conflict message when the ticket was changed by someone else', async () => {
+    setup('12');
+    http.expectOne('/api/tickets/12').flush(saved);
+    await fixture.whenStable();
+    await submit();
+
+    http
+      .expectOne('/api/tickets/12')
+      .flush(
+        { message: 'The ticket was changed by someone else. Reload it and try again.' },
+        { status: 409, statusText: 'Conflict' },
+      );
+    await fixture.whenStable();
+
+    expect(TestBed.inject(NotificationService).notices()[0]).toMatchObject({
+      kind: 'error',
+      text: 'The ticket was changed by someone else. Reload it and try again.',
+    });
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('edit mode: shows an error when the ticket does not exist', async () => {
+    setup('99');
+    http
+      .expectOne('/api/tickets/99')
+      .flush({ message: 'Ticket not found with ID: 99' }, { status: 404, statusText: 'Not Found' });
+    await fixture.whenStable();
+
+    expect(el.querySelector('[role="alert"]')?.textContent).toContain(
+      'Ticket not found with ID: 99',
+    );
     expect(el.querySelector('form')).toBeNull();
   });
 
